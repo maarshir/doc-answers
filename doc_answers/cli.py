@@ -9,7 +9,7 @@ import sys
 import textwrap
 from pathlib import Path
 
-from . import client
+from . import client, providers
 from .chunker import DEFAULT_OVERLAP, DEFAULT_SIZE
 from .evalset import promptdiff_cases, promptdiff_prompts, format_search_report, load_questions, search_report
 from .loader import LoadError
@@ -49,7 +49,11 @@ def parse_args(argv=None):
     ask = sub.add_parser("ask", help="ответить на вопрос")
     ask.add_argument("question", help="вопрос в кавычках")
     _common(ask)
-    ask.add_argument("--model", default=None, help=f"модель (по умолчанию DOC_ANSWERS_MODEL или {client.DEFAULT_MODEL})")
+    ask.add_argument("--model", default=None,
+                     help=f"модель (по умолчанию DOC_ANSWERS_MODEL, иначе {providers.ANTHROPIC.default_model}, "
+                          f"а если задан только GROQ_API_KEY, {providers.GROQ.default_model})")
+    ask.add_argument("--provider", choices=sorted(providers.PROVIDERS), default=None,
+                     help="поставщик (по умолчанию DOC_ANSWERS_PROVIDER или по имени модели: косая черта значит groq)")
     ask.add_argument("--no-model", action="store_true", help="не вызывать модель, только показать найденное (так же без ключа)")
     ask.add_argument("--show-prompt", action="store_true", help="показать сообщение, которое уходит модели")
     ask.add_argument("--prices", default=None, help="свой файл цен для token-counter")
@@ -75,11 +79,12 @@ def run_ask(args, out) -> int:
     for w in warnings:
         print(f"Пропущено: {w}", file=sys.stderr)
 
-    model = args.model or os.environ.get("DOC_ANSWERS_MODEL") or client.DEFAULT_MODEL
-    has_key = bool(os.environ.get("ANTHROPIC_API_KEY"))
+    model, provider = providers.choose(args.model, args.provider, os.environ)
+    has_key = bool(os.environ.get(provider.key_env))
     use_model = has_key and not args.no_model
 
-    result = answer(args.question, index, k=args.k, model=model, use_model=use_model, prices_path=args.prices)
+    result = answer(args.question, index, k=args.k, model=model, provider=provider,
+                    use_model=use_model, prices_path=args.prices)
 
     if result.mode == "model":
         print(result.text, file=out)
@@ -90,7 +95,13 @@ def run_ask(args, out) -> int:
     elif result.mode == "no_hits":
         print(result.text, file=out)
     else:
-        reason = "флаг --no-model" if has_key else "нет ANTHROPIC_API_KEY"
+        if has_key:
+            reason = "флаг --no-model"
+        elif args.model or args.provider or os.environ.get("DOC_ANSWERS_PROVIDER") or os.environ.get("DOC_ANSWERS_MODEL"):
+            reason = f"нет {provider.key_env}"
+        else:
+            # Поставщик не выбран: подсказываем оба ключа, у Groq есть бесплатный уровень
+            reason = f"нет {providers.ANTHROPIC.key_env} или {providers.GROQ.key_env}"
         print(f"Демонстрационный режим ({reason}): модель не вызывалась.", file=out)
         print("Вот куски, которые получила бы модель, лучшие сверху:\n", file=out)
         for i, hit in enumerate(result.hits, 1):
@@ -138,7 +149,7 @@ def main(argv=None, out=None) -> int:
             return run_search_eval(args, out)
         return run_export(args, out)
     except (LoadError, ValueError) as err:
-        # QuestionError тоже ValueError. Понятная строка вместо трассировки.
+        # ProviderError и QuestionError тоже ValueError. Понятная строка вместо трассировки.
         print(f"Ошибка: {err}", file=sys.stderr)
         return 2
     except client.ModelError as err:
