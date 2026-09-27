@@ -3,5 +3,7 @@ __pycache__/
 .env
 .venv/
 .pytest_cache/
-# создаётся командой python -m doc_answers export-arena
+# создаётся командой python -m doc_answers export-promptdiff
+eval/promptdiff/
+# так папка называлась до переименования prompt-arena в promptdiff
 eval/arena/
