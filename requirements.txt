@@ -1,0 +1,8 @@
+httpx==0.28.1
+pyyaml==6.0.2
+snowballstemmer==3.1.1
+pypdf==6.19.0
+pytest==8.3.4
+# Цены моделей и денежная арифметика. Номер коммита закреплён, чтобы правка цен
+# в token-counter не меняла тихо числа здесь.
+token-counter @ git+https://github.com/maarshir/token-counter@6e9d27973008c76a114c4ff812966576b7de6a55
