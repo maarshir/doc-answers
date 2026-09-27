@@ -1,0 +1,81 @@
+# Вопросы к примерам документов из examples/docs.
+# source: файл, где лежит ответ; facts: что обязано быть в ответе модели.
+# answerable: false для вопросов, ответа на которые в документах нет:
+# модель должна честно сказать об этом, а не придумать.
+
+- id: vacation_days
+  question: Сколько дней отпуска в году?
+  source: otpusk.md
+  facts: ["28"]
+
+- id: vacation_request
+  question: За сколько дней нужно подать заявку на отпуск и куда?
+  source: otpusk.md
+  facts: ["14", "#отпуска"]
+  note: два факта в одном ответе
+
+- id: vacation_carry_over
+  question: Можно ли перенести неиспользованные дни отпуска на следующий год?
+  source: otpusk.md
+  facts: ["7"]
+
+- id: per_diem
+  question: Какие суточные в командировке?
+  source: komandirovki.md
+  facts: ["1500"]
+
+- id: trip_report
+  question: В какой срок сдавать отчёт после командировки?
+  source: komandirovki.md
+  facts: ["5 рабочих дней"]
+
+- id: taxi
+  question: Оплачивают ли такси до аэропорта?
+  source: komandirovki.md
+  facts: ["студия"]
+
+- id: broken_laptop
+  question: Что делать, если сломался ноутбук?
+  source: oborudovanie.md
+  facts: ["#it"]
+  note: ответ в разделе про ноутбук, а не в разделе про мониторы
+
+- id: laptop_replacement
+  question: Как часто меняют рабочий ноутбук?
+  source: oborudovanie.md
+  facts: ["3 года"]
+
+- id: incident_night
+  question: Как быстро дежурный должен ответить на сбой ночью?
+  source: dezhurstva.md
+  facts: ["час"]
+  note: в документе два срока, нужен ночной
+
+- id: shift_start
+  question: Когда начинается смена дежурства?
+  source: dezhurstva.md
+  facts: ["понедельник", "10:00"]
+
+- id: probation
+  question: Сколько длится испытательный срок?
+  source: novichkam.txt
+  facts: ["3 месяца"]
+
+- id: mentor_meeting
+  question: Как часто новичок встречается с наставником?
+  source: novichkam.txt
+  facts: ["пятниц"]
+
+- id: sick_leave
+  question: Сколько дней больничного оплачивает студия?
+  answerable: false
+  note: слово «дней» есть в документах, поиск что-то найдёт, отказаться должна модель
+
+- id: salary_day
+  question: В какие числа выплачивают зарплату?
+  answerable: false
+
+- id: capital
+  question: Какая столица Австралии?
+  answerable: false
+  note: общий вопрос не по документам, поиск ничего не должен найти

@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+.env
+.venv/
+.pytest_cache/
+# создаётся командой python -m doc_answers export-arena
+eval/arena/
