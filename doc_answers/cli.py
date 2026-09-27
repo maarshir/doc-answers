@@ -1,4 +1,7 @@
-"""Командная строка: python -m doc_answers ask|search-eval|export-arena."""
+"""Командная строка: python -m doc_answers ask|search-eval|export-promptdiff.
+
+export-arena оставлена как второе имя export-promptdiff: так проект назывался раньше
+(prompt-arena), и старые команды из заметок должны работать."""
 
 import argparse
 import os
@@ -8,7 +11,7 @@ from pathlib import Path
 
 from . import client
 from .chunker import DEFAULT_OVERLAP, DEFAULT_SIZE
-from .evalset import arena_cases, arena_prompts, format_search_report, load_questions, search_report
+from .evalset import promptdiff_cases, promptdiff_prompts, format_search_report, load_questions, search_report
 from .loader import LoadError
 from .pipeline import DEFAULT_K, answer, build_index
 
@@ -55,10 +58,10 @@ def parse_args(argv=None):
     _common(ev)
     ev.add_argument("--questions", default=DEFAULT_QUESTIONS)
 
-    ex = sub.add_parser("export-arena", help="выгрузить набор вопросов в формат prompt-arena")
+    ex = sub.add_parser("export-promptdiff", aliases=["export-arena"], help="выгрузить набор вопросов в формат promptdiff")
     _common(ex)
     ex.add_argument("--questions", default=DEFAULT_QUESTIONS)
-    ex.add_argument("--out", default="eval/arena", help="папка для prompts.yaml и cases.yaml")
+    ex.add_argument("--out", default="eval/promptdiff", help="папка для prompts.yaml и cases.yaml")
     return p.parse_args(argv)
 
 
@@ -118,8 +121,8 @@ def run_export(args, out) -> int:
     target = Path(args.out)
     target.mkdir(parents=True, exist_ok=True)
     settings = f"k={args.k}, size={args.size}, overlap={args.overlap}"
-    (target / "prompts.yaml").write_text(arena_prompts(), encoding="utf-8")
-    (target / "cases.yaml").write_text(arena_cases(index, questions, args.k, settings), encoding="utf-8")
+    (target / "prompts.yaml").write_text(promptdiff_prompts(), encoding="utf-8")
+    (target / "cases.yaml").write_text(promptdiff_cases(index, questions, args.k, settings), encoding="utf-8")
     print(f"Записано: {target / 'prompts.yaml'}, {target / 'cases.yaml'}", file=out)
     return 0
 

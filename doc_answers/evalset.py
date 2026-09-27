@@ -1,9 +1,9 @@
-"""Набор вопросов для проверки: поиск без ключа и выгрузка в формат prompt-arena.
+"""Набор вопросов для проверки: поиск без ключа и выгрузка в формат promptdiff.
 
 Качество ответа по документам складывается из двух частей, и проверять их
 лучше отдельно. Первая: нашёл ли поиск нужный документ. Это проверяется
 без модели, бесплатно и точно. Вторая: ответила ли модель по найденному,
-со ссылкой и без выдумки. Это проверяет prompt-arena на тех же вопросах.
+со ссылкой и без выдумки. Это проверяет promptdiff на тех же вопросах.
 """
 
 from dataclasses import dataclass, field
@@ -122,12 +122,12 @@ def format_search_report(rows: list[SearchRow], k: int) -> str:
         empty = sum(1 for r in no_answer if not r.found)
         lines.append(
             f"Вопросы без ответа: {len(no_answer)}, из них поиск сам отсеял {empty}; "
-            "остальные должна отсеять модель (это проверяет prompt-arena)."
+            "остальные должна отсеять модель (это проверяет promptdiff)."
         )
     return "\n".join(lines)
 
 
-# ---- выгрузка в prompt-arena ----
+# ---- выгрузка в promptdiff ----
 
 PLAIN = f"""Ответь на вопрос по фрагментам документов из сообщения. Укажи, из какого фрагмента взят ответ.
 Если ответа во фрагментах нет, напиши: {NO_ANSWER}"""
@@ -153,20 +153,20 @@ def _dump(data, header: str) -> str:
     return header + body
 
 
-def arena_prompts() -> str:
+def promptdiff_prompts() -> str:
     variants = [
         {"id": "strict", "note": "промпт doc-answers: только фрагменты, ссылка после каждого утверждения, точная фраза отказа",
          "prompt": _Literal(SYSTEM + "\n")},
         {"id": "plain", "note": "тот же договор об ответе, но без правил: для сравнения",
          "prompt": _Literal(PLAIN + "\n")},
     ]
-    header = ("# Создано командой: python -m doc_answers export-arena\n"
+    header = ("# Создано командой: python -m doc_answers export-promptdiff\n"
               "# Не править руками: файл пересоздаётся из doc_answers/prompt.py.\n\n")
     return _dump(variants, header)
 
 
-def arena_cases(index: Index, questions: list[Question], k: int, settings: str = "") -> str:
-    """Задачи для prompt-arena: вход это то самое сообщение, которое doc-answers
+def promptdiff_cases(index: Index, questions: list[Question], k: int, settings: str = "") -> str:
+    """Задачи для promptdiff: вход это то самое сообщение, которое doc-answers
     отправил бы модели, с найденными кусками. Вопросы, на которые поиск ничего
     не нашёл, не выгружаются: модель на них в doc-answers не вызывается."""
     cases = []
@@ -184,6 +184,6 @@ def arena_cases(index: Index, questions: list[Question], k: int, settings: str =
         if q.note:
             case["note"] = q.note
         cases.append(case)
-    header = (f"# Создано командой: python -m doc_answers export-arena ({settings or f'k={k}'})\n"
+    header = (f"# Создано командой: python -m doc_answers export-promptdiff ({settings or f'k={k}'})\n"
               "# Не править руками: вопросы живут в eval/questions.yaml, куски берутся из examples/docs.\n\n")
     return _dump(cases, header)

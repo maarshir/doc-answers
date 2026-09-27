@@ -44,14 +44,15 @@ jobs:
       - name: Вопрос в демонстрационном режиме (без ключа)
         run: python -m doc_answers ask "Сколько дней отпуска в году?"
 
-      # Набор вопросов выгружается в формат prompt-arena. Проверяем настоящим
-      # загрузчиком prompt-arena, а не только своими тестами формата.
-      - name: Совместимость с prompt-arena
+      # Набор вопросов выгружается в формат promptdiff. Проверяем настоящим
+      # загрузчиком promptdiff, а не только своими тестами формата.
+      # Адрес репозитория кончается дефисом (promptdiff-), папку называем явно.
+      - name: Совместимость с promptdiff
         run: |
-          python -m doc_answers export-arena --out eval/arena
-          git clone --depth 1 https://github.com/maarshir/prompt-arena.git /tmp/prompt-arena
-          pip install -r /tmp/prompt-arena/requirements.txt
-          cd /tmp/prompt-arena
-          python run.py --prompts "$GITHUB_WORKSPACE/eval/arena/prompts.yaml" \
-                        --cases "$GITHUB_WORKSPACE/eval/arena/cases.yaml" \
+          python -m doc_answers export-promptdiff --out eval/promptdiff
+          git clone --depth 1 https://github.com/maarshir/promptdiff- /tmp/promptdiff
+          pip install -r /tmp/promptdiff/requirements.txt
+          cd /tmp/promptdiff
+          python run.py --prompts "$GITHUB_WORKSPACE/eval/promptdiff/prompts.yaml" \
+                        --cases "$GITHUB_WORKSPACE/eval/promptdiff/cases.yaml" \
                         --model claude-haiku-4-5 --dry-run

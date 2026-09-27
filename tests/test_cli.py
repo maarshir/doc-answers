@@ -60,11 +60,11 @@ def test_search_eval_passes_on_examples():
     assert "Кусок с ответом на первом месте" in text
 
 
-def test_export_arena(tmp_path):
-    code, _ = run("export-arena", "--docs", str(EXAMPLES),
-                  "--questions", str(EXAMPLES.parent.parent / "eval" / "questions.yaml"), "--out", str(tmp_path / "arena"))
+def test_export_promptdiff(tmp_path):
+    code, _ = run("export-promptdiff", "--docs", str(EXAMPLES),
+                  "--questions", str(EXAMPLES.parent.parent / "eval" / "questions.yaml"), "--out", str(tmp_path / "promptdiff"))
     assert code == 0
-    assert (tmp_path / "arena" / "cases.yaml").exists() and (tmp_path / "arena" / "prompts.yaml").exists()
+    assert (tmp_path / "promptdiff" / "cases.yaml").exists() and (tmp_path / "promptdiff" / "prompts.yaml").exists()
 
 
 def test_ask_with_model_prints_sources(monkeypatch):
@@ -91,3 +91,11 @@ def test_model_error_is_clear(monkeypatch, capsys):
     code, _ = run("ask", "Сколько дней отпуска?", "--docs", str(EXAMPLES))
     assert code == 3
     assert "Модель не ответила: 401" in capsys.readouterr().err
+
+
+def test_old_export_arena_name_still_works(tmp_path):
+    """Старое имя команды (проект раньше назывался prompt-arena) работает как раньше."""
+    code, _ = run("export-arena", "--docs", str(EXAMPLES),
+                  "--questions", str(EXAMPLES.parent.parent / "eval" / "questions.yaml"), "--out", str(tmp_path / "old"))
+    assert code == 0
+    assert (tmp_path / "old" / "cases.yaml").exists() and (tmp_path / "old" / "prompts.yaml").exists()
