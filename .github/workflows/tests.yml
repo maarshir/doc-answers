@@ -1,0 +1,57 @@
+name: Тесты
+
+# Обычная проверка тестов, отдельно от agent-merge.yml (тот только сливает ветки agent/...).
+# Запускается при изменениях в main и в рабочих ветках, на запросы на слияние,
+# раз в неделю по расписанию и вручную из вкладки Actions.
+# Коммиты, которые делает сам бот слияния, другие workflow не запускают (так устроен
+# GITHUB_TOKEN), поэтому расписание нужно, чтобы значок в README отражал свежий main.
+on:
+  push:
+    branches: ['main', 'work/**']
+  pull_request:
+  schedule:
+    - cron: '27 3 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 3.10 это нижняя версия из README, 3.12 текущая
+        python-version: ['3.10', '3.12']
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Зависимости
+        run: pip install -r requirements.txt
+
+      - name: Тесты
+        run: python -m pytest -q
+
+      - name: Поиск на наборе вопросов (без ключа)
+        run: python -m doc_answers search-eval
+
+      - name: Вопрос в демонстрационном режиме (без ключа)
+        run: python -m doc_answers ask "Сколько дней отпуска в году?"
+
+      # Набор вопросов выгружается в формат prompt-arena. Проверяем настоящим
+      # загрузчиком prompt-arena, а не только своими тестами формата.
+      - name: Совместимость с prompt-arena
+        run: |
+          python -m doc_answers export-arena --out eval/arena
+          git clone --depth 1 https://github.com/maarshir/prompt-arena.git /tmp/prompt-arena
+          pip install -r /tmp/prompt-arena/requirements.txt
+          cd /tmp/prompt-arena
+          python run.py --prompts "$GITHUB_WORKSPACE/eval/arena/prompts.yaml" \
+                        --cases "$GITHUB_WORKSPACE/eval/arena/cases.yaml" \
+                        --model claude-haiku-4-5 --dry-run
