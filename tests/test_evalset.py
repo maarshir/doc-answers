@@ -4,7 +4,7 @@ import yaml
 from conftest import ROOT
 from doc_answers.cli import DEFAULT_DOCS, DEFAULT_QUESTIONS
 from doc_answers.evalset import (
-    QuestionError, arena_cases, arena_prompts, load_questions, search_report,
+    QuestionError, promptdiff_cases, promptdiff_prompts, load_questions, search_report,
 )
 from doc_answers.pipeline import DEFAULT_K, build_index
 from doc_answers.prompt import SYSTEM
@@ -50,11 +50,11 @@ def test_every_answer_is_found_by_search(index):
     assert missed == []
 
 
-def test_arena_cases_input_is_the_real_message(index):
-    """Вход задачи в prompt-arena совпадает с тем, что doc-answers отправил бы модели."""
+def test_promptdiff_cases_input_is_the_real_message(index):
+    """Вход задачи в promptdiff совпадает с тем, что doc-answers отправил бы модели."""
     from doc_answers.prompt import build_user_message
     questions = load_questions(QUESTIONS)
-    cases = {c["id"]: c for c in yaml.safe_load(arena_cases(index, questions, 2))}
+    cases = {c["id"]: c for c in yaml.safe_load(promptdiff_cases(index, questions, 2))}
     q = next(q for q in questions if q.id == "per_diem")
     expected = build_user_message(q.question, [h.chunk for h in index.search(q.question, 2)])
     assert cases["per_diem"]["input"] == expected + "\n"
@@ -68,10 +68,10 @@ def test_unrelated_question_is_filtered_by_search(index):
     assert rows["sick_leave"].found != ()   # этот должна отсеять модель
 
 
-def test_arena_files_follow_prompt_arena_format(index):
-    """Те же требования, что у загрузчика prompt-arena (core/cases.py и core/variants.py).
-    Настоящим загрузчиком prompt-arena эти файлы проверяются в CI (tests.yml)."""
-    cases = yaml.safe_load(arena_cases(index, load_questions(QUESTIONS), DEFAULT_K))
+def test_promptdiff_files_follow_promptdiff_format(index):
+    """Те же требования, что у загрузчика promptdiff (core/cases.py и core/variants.py).
+    Настоящим загрузчиком promptdiff эти файлы проверяются в CI (tests.yml)."""
+    cases = yaml.safe_load(promptdiff_cases(index, load_questions(QUESTIONS), DEFAULT_K))
     ids = [c["id"] for c in cases]
     assert len(ids) == len(set(ids))
     for case in cases:
@@ -83,6 +83,6 @@ def test_arena_files_follow_prompt_arena_format(index):
                 assert isinstance(item, str)
     assert "capital" not in ids and "sick_leave" in ids
 
-    variants = yaml.safe_load(arena_prompts())
+    variants = yaml.safe_load(promptdiff_prompts())
     assert [v["id"] for v in variants] == ["strict", "plain"]
     assert variants[0]["prompt"].strip() == SYSTEM.strip()
