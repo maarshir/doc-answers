@@ -44,6 +44,9 @@ jobs:
       - name: Вопрос в демонстрационном режиме (без ключа)
         run: python -m doc_answers ask "Сколько дней отпуска в году?"
 
+      - name: Вопрос в демонстрационном режиме через Groq (без ключа)
+        run: python -m doc_answers ask "Сколько дней отпуска в году?" --provider groq
+
       # Набор вопросов выгружается в формат promptdiff. Проверяем настоящим
       # загрузчиком promptdiff, а не только своими тестами формата.
       # Адрес репозитория кончается дефисом (promptdiff-), папку называем явно.
@@ -56,3 +59,6 @@ jobs:
           python run.py --prompts "$GITHUB_WORKSPACE/eval/promptdiff/prompts.yaml" \
                         --cases "$GITHUB_WORKSPACE/eval/promptdiff/cases.yaml" \
                         --model claude-haiku-4-5 --dry-run
+          python run.py --prompts "$GITHUB_WORKSPACE/eval/promptdiff/prompts.yaml" \
+                        --cases "$GITHUB_WORKSPACE/eval/promptdiff/cases.yaml" \
+                        --provider groq --rpm 5 --dry-run

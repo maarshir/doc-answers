@@ -13,8 +13,9 @@ def no_key(monkeypatch, tmp_path):
     monkeypatch.chdir(tmp_path)
     # setenv перед delenv, чтобы monkeypatch запомнил переменную и убрал её после теста,
     # даже если тест прочитал .env и выставил её заново
-    monkeypatch.setenv("ANTHROPIC_API_KEY", "x")
-    monkeypatch.delenv("ANTHROPIC_API_KEY")
+    for name in ("ANTHROPIC_API_KEY", "GROQ_API_KEY", "DOC_ANSWERS_MODEL", "DOC_ANSWERS_PROVIDER"):
+        monkeypatch.setenv(name, "x")
+        monkeypatch.delenv(name)
 
 
 def run(*argv):
@@ -26,7 +27,7 @@ def run(*argv):
 def test_ask_without_key_is_demo():
     code, text = run("ask", "Сколько дней отпуска?", "--docs", str(EXAMPLES), "--k", "2")
     assert code == 0
-    assert "Демонстрационный режим (нет ANTHROPIC_API_KEY)" in text
+    assert "Демонстрационный режим (нет ANTHROPIC_API_KEY или GROQ_API_KEY)" in text
     assert "1. [otpusk.md#1] otpusk.md, Отпуск / Сколько дней" in text
     assert "≈" in text
 
@@ -70,7 +71,7 @@ def test_export_promptdiff(tmp_path):
 def test_ask_with_model_prints_sources(monkeypatch):
     monkeypatch.setenv("ANTHROPIC_API_KEY", "test")
 
-    def fake(system, user, model, key=None):
+    def fake(system, user, model, key=None, provider=None):
         return client.Reply("28 календарных дней [otpusk.md#1].", "claude-haiku-4-5", {"input_tokens": 500, "output_tokens": 20})
 
     monkeypatch.setattr(client, "ask", fake)
@@ -99,3 +100,25 @@ def test_old_export_arena_name_still_works(tmp_path):
                   "--questions", str(EXAMPLES.parent.parent / "eval" / "questions.yaml"), "--out", str(tmp_path / "old"))
     assert code == 0
     assert (tmp_path / "old" / "cases.yaml").exists() and (tmp_path / "old" / "prompts.yaml").exists()
+
+
+def test_groq_key_only_goes_to_groq(monkeypatch):
+    monkeypatch.setenv("GROQ_API_KEY", "g")
+    calls = []
+
+    def fake(system, user, model, key=None, provider=None):
+        calls.append((model, provider.name))
+        return client.Reply("28 календарных дней [otpusk.md#1].", model,
+                            {"prompt_tokens": 500, "completion_tokens": 20}, provider="groq")
+
+    monkeypatch.setattr(client, "ask", fake)
+    code, text = run("ask", "Сколько дней отпуска?", "--docs", str(EXAMPLES))
+    assert code == 0
+    assert calls == [("openai/gpt-oss-120b", "groq")]
+    assert "Токены: 500 на входе, 20 на выходе." in text
+
+
+def test_demo_names_missing_groq_key():
+    code, text = run("ask", "Сколько дней отпуска?", "--docs", str(EXAMPLES), "--provider", "groq")
+    assert "Демонстрационный режим (нет GROQ_API_KEY)" in text
+    assert "openai/gpt-oss-120b" in text

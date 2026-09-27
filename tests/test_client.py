@@ -68,3 +68,61 @@ def test_backoff_grows_and_has_cap():
     assert 0.5 <= client.backoff_delay(0) <= 1
     assert 4 <= client.backoff_delay(3) <= 8
     assert client.backoff_delay(20) <= 20
+
+
+def groq_ok(text="Ответ [a.md#1]", finish="stop"):
+    return httpx.Response(200, json={
+        "model": "openai/gpt-oss-120b",
+        "choices": [{"message": {"role": "assistant", "content": text}, "finish_reason": finish}],
+        "usage": {"prompt_tokens": 800, "completion_tokens": 60},
+    })
+
+
+def test_groq_by_model_name():
+    seen = []
+    reply = client.ask("система", "вопрос", "openai/gpt-oss-120b", key="g", http=fake_http([groq_ok()], seen))
+    assert reply.text == "Ответ [a.md#1]"
+    assert reply.provider == "groq"
+    assert reply.usage == {"prompt_tokens": 800, "completion_tokens": 60}
+    assert str(seen[0].url) == "https://api.groq.com/openai/v1/chat/completions"
+    assert seen[0].headers["authorization"] == "Bearer g"
+
+
+def test_groq_key_from_env(monkeypatch):
+    monkeypatch.delenv("GROQ_API_KEY", raising=False)
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "a")   # чужой ключ не подходит
+    with pytest.raises(client.ModelError, match="GROQ_API_KEY"):
+        client.ask("s", "u", "openai/gpt-oss-120b")
+
+
+def test_rate_limit_waits_as_server_says():
+    pauses = []
+    http = fake_http([httpx.Response(429, headers={"retry-after": "7"}, text="rate limit"), groq_ok()])
+    reply = client.ask("s", "u", "openai/gpt-oss-120b", key="g", http=http, sleep=pauses.append)
+    assert reply.attempts == 2
+    assert pauses == [7.0]
+
+
+def test_groq_has_more_attempts_than_anthropic():
+    pauses = []
+    http = fake_http([httpx.Response(429)] * 8)
+    with pytest.raises(client.ModelError, match="8 попыток"):
+        client.ask("s", "u", "openai/gpt-oss-120b", key="g", http=http, sleep=pauses.append)
+    assert len(pauses) == 7
+
+
+def test_empty_answer_cut_by_limit_is_error_without_retry():
+    seen = []
+    http = fake_http([groq_ok("", "length"), groq_ok()], seen)
+    with pytest.raises(client.ModelError, match="на рассуждение"):
+        client.ask("s", "u", "openai/gpt-oss-120b", key="g", http=http, sleep=lambda _: None)
+    assert len(seen) == 1
+
+
+@pytest.mark.parametrize("value, expected", [("3", 3.0), ("1000", client.MAX_RETRY_AFTER), ("-5", 0.0), ("soon", None)])
+def test_retry_after_values(value, expected):
+    assert client.retry_after(httpx.Response(429, headers={"retry-after": value})) == expected
+
+
+def test_retry_after_missing():
+    assert client.retry_after(httpx.Response(429)) is None

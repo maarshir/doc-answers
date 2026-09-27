@@ -19,11 +19,13 @@ def never_called(*args, **kwargs):
 def fake_ask(text, model="claude-haiku-4-5-20251001", usage=None):
     calls = []
 
-    def ask(system, user, model_name, key=None):
+    def ask(system, user, model_name, key=None, provider=None):
         calls.append((system, user, model_name))
+        ask.providers.append(provider)
         return client.Reply(text, model, usage or {"input_tokens": 1000, "output_tokens": 100})
 
     ask.calls = calls
+    ask.providers = []
     return ask
 
 
@@ -73,3 +75,19 @@ def test_unknown_model_price_does_not_break_answer(index, tmp_path):
 def test_empty_question(index):
     with pytest.raises(ValueError):
         answer("   ", index, ask=never_called)
+
+
+def test_groq_answer_cost_from_openai_usage(index):
+    usage = {"prompt_tokens": 1000, "completion_tokens": 100, "prompt_tokens_details": {"cached_tokens": 400}}
+    ask = fake_ask("28 календарных дней [otpusk.md#1].", model="openai/gpt-oss-120b", usage=usage)
+    result = answer("Сколько дней отпуска?", index, model="openai/gpt-oss-120b", ask=ask)
+    assert ask.providers[0].name == "groq"
+    assert "Токены: 600 на входе, 100 на выходе. Из кэша промпта 400." in result.notes[0]
+    # gpt-oss-120b на Groq: 600 × $0.15 + 400 × $0.075 + 100 × $0.60 за миллион = $0.00018
+    assert "$0.00018" in result.notes[0]
+
+
+def test_demo_estimate_uses_provider_limit(index):
+    result = answer("Сколько дней отпуска?", index, model="openai/gpt-oss-120b", use_model=False, ask=never_called)
+    assert "не больше 1024 на выходе" in result.notes[0]
+    assert "openai/gpt-oss-120b" in result.notes[0]
